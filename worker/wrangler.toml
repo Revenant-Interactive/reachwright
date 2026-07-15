@@ -1,32 +1,34 @@
-# Reachwright demo brain — Cloudflare Worker
-# NOT YET DEPLOYED. Deploy checklist (per PLAN.md, Phase B):
-#   1. Michael creates the Cloudflare account (free tier) + enables MFA.
-#   2. `wrangler login`, then create the KV namespace:  wrangler kv namespace create RATE
-#      → paste the returned id below (dev + prod).
-#   3. Secrets (never in this file):
-#        wrangler secret put OPENROUTER_KEY        # dedicated key, PREPAID ~$5, AUTO TOP-UP DISABLED
-#        wrangler secret put TURNSTILE_SECRET      # from Cloudflare Turnstile widget for the site origin
-#   4. Deploy dev first (`wrangler deploy --env dev`), smoke-test, then prod.
-#   5. Set LIVE_ENDPOINT in the site's demo.js to the prod URL and add it to the
-#      page CSP connect-src, together with Turnstile script/frame entries.
+# Reachwright Qualify conversation Worker — NOT DEPLOYED.
+# Required before deployment:
+#   - Cloudflare account with MFA and separate dev/prod environments
+#   - Turnstile widget restricted to the exact website host
+#   - RATE and SESSIONS KV namespaces for each environment
+#   - Dedicated prepaid OpenRouter key; automatic top-up disabled
+#   - Provider privacy/data-retention review and a revised public privacy notice
+#   - Contract tests, abuse tests, fallback tests, and a production smoke test
 
-name = "reachwright-demo-brain"
+name = "reachwright-qualify"
 main = "src/index.js"
 compatibility_date = "2026-07-01"
 
 [vars]
 ALLOWED_ORIGIN = "https://reemergenceholdings.com"
-MODEL = "meta-llama/llama-3.3-70b-instruct"   # placeholder — bake-off 2–3 cheap models at deploy time
+MODEL = "SET_AFTER_MODEL_BAKEOFF"
 MAX_TURNS = "12"
 MAX_INPUT_CHARS = "500"
-DAILY_GLOBAL_CAP = "400"        # total requests/day across all visitors
-DAILY_IP_CAP = "30"             # per-IP requests/day
-DAILY_PREFIX_CAP = "80"         # per-/24 (v4) or /48 (v6) requests/day
+PROVIDER_TIMEOUT_MS = "8000"
+DAILY_GLOBAL_CAP = "400"
+DAILY_IP_CAP = "30"
+DAILY_PREFIX_CAP = "80"
 
 # [[kv_namespaces]]
 # binding = "RATE"
-# id = "REPLACE_AT_DEPLOY"
+# id = "REPLACE_WITH_PRODUCTION_RATE_NAMESPACE"
+
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "REPLACE_WITH_PRODUCTION_SESSION_NAMESPACE"
 
 # [env.dev]
-# name = "reachwright-demo-brain-dev"
-# vars = { ALLOWED_ORIGIN = "http://localhost:8000", ... }
+# name = "reachwright-qualify-dev"
+# Use a complete [env.dev.vars] table and separate dev namespaces/secrets.

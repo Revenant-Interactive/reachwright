@@ -1,37 +1,54 @@
 # Reachwright
 
-**Qualified sales calls, booked straight from the ad.** The flagship of ReeMergence Holdings.
+**Find the right prospects. Convert the right ones.** Reachwright is a two-engine managed growth system from ReeMergence Holdings:
 
-This repo is the public demo website (GitHub Pages) plus the not-yet-deployed Cloudflare Worker that will power live-AI demo mode. The governing plan — grilled with the owner, then approved through 4 rounds of adversarial cross-model review — lives in the ReeMergence vault at `projects/ad-to-call-engine/PLAN.md`.
+- **Scout** produces evidence-backed prospect dossiers and human-approved outreach drafts.
+- **Qualify** applies client-approved fit rules to inbound conversations and routes the next step.
+
+This repository contains the public GitHub Pages product site, a zero-network deterministic preview of both workflows, and an undeployed Cloudflare Worker prototype for a later live-AI Qualify mode. The governing plan lives at `projects/ad-to-call-engine/PLAN.md` in the private ReeMergence vault.
 
 ## Structure
 
-| path | what |
+| path | purpose |
 |---|---|
-| `index.html` | single-page site: hero, how-it-works, cited proof, live demo, offer, booking CTA |
-| `styles.css` | self-contained design system (system fonts only, no external assets) |
-| `demo.js` | scripted qualification demo — runs 100% in-browser, sends nothing anywhere |
-| `privacy.html` | plain-English privacy notice |
-| `worker/` | Cloudflare Worker for live-AI mode — **written, not deployed** (see `worker/wrangler.toml` header for the deploy checklist) |
+| `index.html` | product positioning, standards, dual workflow preview, and pilot CTA |
+| `styles.css` | self-contained design system using local system fonts |
+| `demo.js` | scripted Scout and Qualify preview; no network, storage, or personal-data collection |
+| `privacy.html` | current-state website privacy notice plus future-service boundary |
+| `worker/` | undeployed live-AI Qualify prototype and contract tests |
 
-## Current mode: scripted
+## What exists today
 
-The demo is the deterministic scripted track (which is also the permanent fallback once live mode ships). Flipping to live AI requires, in order: Cloudflare account → Turnstile widget → KV namespace → prepaid OpenRouter key (auto top-up **disabled**) → deploy dev, smoke-test, deploy prod → set `LIVE_ENDPOINT` in `demo.js` → add the Worker origin to `connect-src` and the Turnstile script/frame hosts to the page CSP.
+- A static public product site.
+- A deterministic browser-only preview of Scout and Qualify.
+- Written product controls: source provenance, unknown-state handling, suppression, human approval, deterministic qualification, and scripted fallback.
+- An undeployed Worker prototype for a future live-AI Qualify conversation layer.
 
-## Launch checklist (gates from PLAN.md — all must pass before the URL is shared)
+The site does **not** currently search for prospects, send outreach, connect to a CRM, book appointments, or call an AI provider. Public copy must continue to distinguish the designed service from deployed software.
 
-- [ ] Calendly event created; mailto CTA in `#book` replaced with the inline embed (+ CSP already allowlists Calendly)
-- [ ] Demo completes on desktop Chrome/Firefox, iOS Safari, Android Chrome, FB/IG in-app browsers (incl. blocked-cookies pass)
-- [ ] Scripted fallback verified by forcing each trigger (live mode only)
-- [ ] Controlled TEST booking on the production event: correct timezone + attribution, then canceled
-- [ ] Lighthouse accessibility ≥ 90
-- [ ] Custom domain: DNS inventoried → domain verified in GitHub → Cloudflare-proxied DNS with security headers (CSP, frame-ancestors, referrer/permissions policies) via Transform Rules → apex + www tested → HTTPS enforced
-- [ ] Owner reviews the deployed site and explicitly approves
+## Product boundaries
 
-## Deploy
+The public marketing site remains self-contained. Calendly and Cloudflare Turnstile are the only planned browser-side third parties.
 
-Pushed to `main` → GitHub Pages serves it. Rollback: `git revert` + push.
+A production client service is different: it may require client-authorized research, CRM, ad, scheduling, and messaging providers. Each engagement needs a provider/data map, retention policy, access controls, suppression process, and client approval before activation. LinkedIn login scraping or prohibited automated activity is out of scope.
+
+## Launch gates
+
+- [ ] Approve the Scout ICP schema, evidence ledger, scoring rubric, suppression model, and five manually verified sample dossiers.
+- [ ] Select lawful, contract-compatible business data sources and document allowed uses.
+- [ ] Establish commercial-email identity, valid postal address, unsubscribe handling, and suppression controls before email is enabled.
+- [ ] Build the operator approval queue; no message may leave from generated output alone.
+- [ ] Create and test the booking event, timezone, attribution, routing, and cancellation behavior.
+- [ ] Red-team Qualify rules across strong, uncertain, no-fit, prompt-injection, timeout, and provider-failure cases.
+- [ ] Complete browser and assistive-technology QA; achieve Lighthouse accessibility of at least 90.
+- [ ] Move to the custom domain and deliver CSP, frame-ancestors, referrer policy, permissions policy, and related controls as real HTTP headers.
+- [ ] Document every production provider, field, retention period, and deletion/suppression path in the client data map.
+- [ ] Obtain explicit owner approval before representing either engine as live.
+
+## Deployment
+
+GitHub Pages serves the static site from `main`. The Worker is a separate, deliberately blocked deployment. Publishing the site does not authorize or activate production outreach.
 
 ---
 
-© 2026 ReeMergence Holdings · Built as part of the [ad-to-call engine] project.
+&copy; 2026 ReeMergence Holdings.
