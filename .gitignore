@@ -1,0 +1,8 @@
+# Internal review briefs — never publish to the public repo
+CODEX-REVIEW.md
+CODEX-VERDICT.md
+
+# local tooling
+node_modules/
+.wrangler/
+.dev.vars
