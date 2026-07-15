@@ -1,0 +1,32 @@
+# Reachwright demo brain — Cloudflare Worker
+# NOT YET DEPLOYED. Deploy checklist (per PLAN.md, Phase B):
+#   1. Michael creates the Cloudflare account (free tier) + enables MFA.
+#   2. `wrangler login`, then create the KV namespace:  wrangler kv namespace create RATE
+#      → paste the returned id below (dev + prod).
+#   3. Secrets (never in this file):
+#        wrangler secret put OPENROUTER_KEY        # dedicated key, PREPAID ~$5, AUTO TOP-UP DISABLED
+#        wrangler secret put TURNSTILE_SECRET      # from Cloudflare Turnstile widget for the site origin
+#   4. Deploy dev first (`wrangler deploy --env dev`), smoke-test, then prod.
+#   5. Set LIVE_ENDPOINT in the site's demo.js to the prod URL and add it to the
+#      page CSP connect-src, together with Turnstile script/frame entries.
+
+name = "reachwright-demo-brain"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://reemergenceholdings.com"
+MODEL = "meta-llama/llama-3.3-70b-instruct"   # placeholder — bake-off 2–3 cheap models at deploy time
+MAX_TURNS = "12"
+MAX_INPUT_CHARS = "500"
+DAILY_GLOBAL_CAP = "400"        # total requests/day across all visitors
+DAILY_IP_CAP = "30"             # per-IP requests/day
+DAILY_PREFIX_CAP = "80"         # per-/24 (v4) or /48 (v6) requests/day
+
+# [[kv_namespaces]]
+# binding = "RATE"
+# id = "REPLACE_AT_DEPLOY"
+
+# [env.dev]
+# name = "reachwright-demo-brain-dev"
+# vars = { ALLOWED_ORIGIN = "http://localhost:8000", ... }
