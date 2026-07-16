@@ -1,0 +1,53 @@
+# Reachwright operator API — Cloudflare Worker + D1 + KV. NOT DEPLOYED YET.
+#
+# Local development needs NO Cloudflare account:
+#   npm run db:local     (applies migrations to the local D1 SQLite)
+#   npm run api:dev      (wrangler dev --local on port 8788)
+#   Dev auth: .dev.vars supplies OPERATOR_TOKEN (never committed; see .gitignore)
+#
+# Production deployment checklist (each item is Michael's call):
+#   - Cloudflare account with MFA; separate dev and prod resources
+#   - `wrangler d1 create reachwright` → paste database_id below
+#   - `wrangler kv namespace create CACHE` → paste id below
+#   - Secrets: wrangler secret put OPERATOR_TOKEN (long random value)
+#              wrangler secret put APOLLO_API_KEY   (master key; people api_search requires it)
+#   - Optional hardening: put Cloudflare Access in front of the workers.dev route
+#   - EMAIL_GATE_PASSED stays "false" until the CAN-SPAM operational gate passes
+
+name = "reachwright-api"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[vars]
+APP_ORIGIN = "http://localhost:8123"        # operator app origin; set to production app URL at deploy
+DEV_FIXTURES = "false"                       # NEVER "true" in production
+EMAIL_GATE_PASSED = "false"                  # blocks email exports until CAN-SPAM gate passes
+PROVIDER_TIMEOUT_MS = "15000"
+PROVIDER_CREDIT_CEILING = "200"              # hard monthly estimate ceiling across all campaigns
+BODY_MAX_BYTES = "65536"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "reachwright"
+database_id = "REPLACE_AT_DEPLOY"            # local mode ignores this
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_AT_DEPLOY"                     # local mode ignores this
+
+[env.dev]
+name = "reachwright-api-dev"
+[env.dev.vars]
+APP_ORIGIN = "http://localhost:8123"
+DEV_FIXTURES = "true"                        # fixtures allowed in dev only
+EMAIL_GATE_PASSED = "false"
+PROVIDER_TIMEOUT_MS = "15000"
+PROVIDER_CREDIT_CEILING = "50"
+BODY_MAX_BYTES = "65536"
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "reachwright"
+database_id = "REPLACE_AT_DEPLOY"
+[[env.dev.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_AT_DEPLOY"

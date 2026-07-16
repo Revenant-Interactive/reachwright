@@ -15,16 +15,21 @@ This repository contains the public GitHub Pages product site, a zero-network de
 | `styles.css` | self-contained design system using local system fonts |
 | `demo.js` | scripted Scout and Qualify preview; no network, storage, or personal-data collection |
 | `privacy.html` | current-state website privacy notice plus future-service boundary |
-| `worker/` | undeployed live-AI Qualify prototype and contract tests |
+| `worker/` | undeployed live-AI Qualify conversation worker (Turnstile sessions, deterministic verdicts, operator-flow loading) + contract tests |
+| `worker-api/` | undeployed operator/Scout API worker: campaigns, evidence ledger, deterministic scoring, suppression, approval-gated drafts, exports, flow builder, reporting (Cloudflare Worker + D1 + KV) |
+| `app/` | operator console (static, no secrets in source; bearer-token sign-in) |
+| `migrations/` | D1 schema (`0001_init.sql`) + dev-only seed |
+| `docs/` | data map, security model, compliance boundaries, deployment, operator runbook, verified provider docs |
+| `tests/` | Scout logic, Qualify flow, and end-to-end API tests (node:test; real schema via node:sqlite shim) |
 
 ## What exists today
 
-- A static public product site.
+- A static public product site (live on GitHub Pages).
 - A deterministic browser-only preview of Scout and Qualify.
-- Written product controls: source provenance, unknown-state handling, suppression, human approval, deterministic qualification, and scripted fallback.
-- An undeployed Worker prototype for a future live-AI Qualify conversation layer.
+- **Built and locally verified, NOT deployed:** the full operator layer — campaign briefs, provider-adapter interface with a documentation-verified Apollo adapter, evidence ledger with provenance, playbook-rubric scoring, cross-channel suppression, approval-gated outreach drafts with content hashing and edit-invalidation, CSV export (email gated behind CAN-SPAM controls), qualification flow builder with versioning, bookings (booked ≠ held), reporting, and audit trail. 44 automated tests pass. Local setup: `docs/deployment.md`.
+- An undeployed Qualify conversation worker for a future live-AI mode.
 
-The site does **not** currently search for prospects, send outreach, connect to a CRM, book appointments, or call an AI provider. Public copy must continue to distinguish the designed service from deployed software.
+**Nothing in this repository is deployed beyond the static site.** No prospect has been searched, no outreach sent, no AI provider called. Scout search requires an Apollo key that has never been configured; without one the console displays "Provider not configured" — it never fabricates data. Public copy must continue to distinguish the designed service from deployed software.
 
 ## Product boundaries
 

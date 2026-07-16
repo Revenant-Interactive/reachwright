@@ -8,9 +8,64 @@
  * - Fit, next question, and routing are deterministic server decisions.
  * - The model may write one bounded reply sentence; it cannot choose the verdict.
  * - Every dependency or validation failure returns { fallback: true }.
+ *
+ * Operator flows (optional): when a D1 binding (env.DB) is present, the
+ * active operator-authored flow from `qualification_flows` drives questions
+ * and deterministic verdicts via the shared evaluator. Without a binding —
+ * or on any flow-loading failure — the hardcoded interview below remains
+ * the canonical behavior. Session outcomes are recorded to D1 best-effort;
+ * recording failures never affect the visitor.
  */
 
+import {
+  evaluateFlow,
+  normalizeFlowAnswers,
+  validateFlowDefinition,
+} from "../../worker-api/src/lib/qualify.js";
+
 const SESSION_TTL_SECONDS = 900;
+const FLOW_CACHE_MS = 60_000;
+
+let flowCache = { at: 0, definition: null, meta: null };
+
+/** Load the active operator flow from D1, cached per isolate. null = use builtin. */
+async function loadActiveFlow(env) {
+  if (!env.DB) return null;
+  const now = Date.now();
+  if (now - flowCache.at < FLOW_CACHE_MS) return flowCache.definition ? flowCache : null;
+  flowCache = { at: now, definition: null, meta: null };
+  try {
+    const row = await env.DB
+      .prepare("SELECT id, name, version, definition FROM qualification_flows WHERE status = 'active' ORDER BY updated_at DESC LIMIT 1")
+      .first();
+    if (!row) return null;
+    const definition = JSON.parse(row.definition);
+    if (!validateFlowDefinition(definition).ok) return null;
+    flowCache = { at: now, definition, meta: { id: row.id, name: row.name, version: row.version } };
+    return flowCache;
+  } catch {
+    return null; // any flow failure falls back to the builtin interview
+  }
+}
+
+/** Best-effort session/outcome recording. Never throws to the caller. */
+async function recordOutcome(env, { sessionId, flow, answers, turns, decision }) {
+  if (!env.DB || decision.verdict === null) return;
+  try {
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO qualification_sessions (id, flow_id, flow_version, source, started_at, last_turn_at, turns, answers, state)
+       VALUES (?, ?, ?, '', ?, ?, ?, ?, 'verdict')`,
+    ).bind(sessionId, flow?.meta?.id ?? null, flow?.meta?.version ?? null, now, now, turns, JSON.stringify(answers)).run();
+    await env.DB.prepare(
+      `INSERT INTO qualification_outcomes (id, session_id, verdict, factors, routed_to, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).bind(`rw-v-${sessionId.slice(0, 20)}-${turns}`, sessionId, decision.verdict,
+      JSON.stringify(decision.factors ?? []), decision.route ?? "", now).run();
+  } catch {
+    // Recording is observability, not correctness — the visitor response stands.
+  }
+}
 const BODY_MAX_BYTES = 12_000;
 const REPLY_MAX = 160;
 
@@ -168,6 +223,17 @@ function validateModelOutput(raw) {
   return reply;
 }
 
+/** Scripted copy for operator-flow mode: flow-authored fallback text first. */
+function flowFallbackReply(definition, decision, question) {
+  if (decision.next_question_id !== "verdict") {
+    return definition.fallbackCopy?.[decision.next_question_id]
+      || question?.prompt
+      || "Please choose one of the available options.";
+  }
+  return definition.verdictCopy?.[decision.fit]
+    || "A human will review this conversation before any next step.";
+}
+
 function fallbackReply(decision) {
   const copy = {
     q_business: "What kind of business are you running?",
@@ -251,7 +317,10 @@ async function chat(request, env, origin, ip) {
   const maxTurns = positiveInt(env.MAX_TURNS, 12);
   if (session.turns >= maxTurns) return fallback(origin, "turn-cap");
 
-  const answers = normalizeAnswers(body.answers || {});
+  const flow = await loadActiveFlow(env);
+  const answers = flow
+    ? normalizeFlowAnswers(flow.definition, body.answers || {})
+    : normalizeAnswers(body.answers || {});
   if (!answers) return fallback(origin, "answer-schema");
   const userMessage = typeof body.userMessage === "string" ? body.userMessage.trim() : "";
   if (userMessage.length > positiveInt(env.MAX_INPUT_CHARS, 500) || SENSITIVE_INPUT.test(userMessage)) {
@@ -265,13 +334,36 @@ async function chat(request, env, origin, ip) {
     return fallback(origin, "session-store");
   }
 
-  const decision = deterministicDecision(answers);
+  let decision;
+  let question = null;
+  if (flow) {
+    const evaluated = evaluateFlow(flow.definition, answers);
+    decision = { next_question_id: evaluated.next_question_id, fit: evaluated.verdict ?? "unknown" };
+    if (evaluated.verdict === null) {
+      const next = flow.definition.questions.find((q) => q.id === evaluated.next_question_id);
+      if (next) question = { id: next.id, field: next.field, prompt: next.prompt, options: next.options };
+    } else {
+      await recordOutcome(env, { sessionId: body.sessionId, flow, answers, turns: session.turns, decision: evaluated });
+    }
+  } else {
+    decision = deterministicDecision(answers);
+    if (decision.next_question_id === "verdict") {
+      await recordOutcome(env, {
+        sessionId: body.sessionId, flow: null, answers, turns: session.turns,
+        decision: { verdict: decision.fit, factors: [], route: "" },
+      });
+    }
+  }
+
   const generated = await modelReply(env, answers, decision, userMessage);
+  const scripted = flow ? flowFallbackReply(flow.definition, decision, question) : fallbackReply(decision);
   return json({
     fallback: false,
     result: {
       ...decision,
-      reply_text: generated || fallbackReply(decision),
+      ...(question ? { question } : {}),
+      flow: flow ? flow.meta : null,
+      reply_text: generated || scripted,
       reply_source: generated ? "model" : "scripted",
       turns_remaining: Math.max(0, maxTurns - session.turns),
     },
@@ -302,7 +394,10 @@ export async function handleRequest(request, env) {
   return json({ fallback: true, reason: "not-found" }, 404, origin);
 }
 
-export { normalizeAnswers, deterministicDecision, validateModelOutput, fallbackReply };
+export {
+  normalizeAnswers, deterministicDecision, validateModelOutput, fallbackReply,
+  loadActiveFlow, flowFallbackReply,
+};
 
 export default {
   async fetch(request, env) {

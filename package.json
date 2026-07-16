@@ -1,0 +1,17 @@
+{
+  "name": "reachwright",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\" worker/test.mjs",
+    "test:unit": "node --test \"tests/*.test.mjs\"",
+    "test:worker": "node --test worker/test.mjs",
+    "db:local": "wrangler d1 execute reachwright --local --config worker-api/wrangler.toml --file migrations/0001_init.sql",
+    "db:seed": "wrangler d1 execute reachwright --local --config worker-api/wrangler.toml --file migrations/dev-seed.sql",
+    "api:dev": "wrangler dev --config worker-api/wrangler.toml --local --port 8788",
+    "app:dev": "python -m http.server 8123"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

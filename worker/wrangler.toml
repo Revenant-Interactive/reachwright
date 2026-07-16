@@ -29,6 +29,14 @@ DAILY_PREFIX_CAP = "80"
 # binding = "SESSIONS"
 # id = "REPLACE_WITH_PRODUCTION_SESSION_NAMESPACE"
 
+# Optional: bind the shared Reachwright D1 database to serve operator-authored
+# qualification flows and record session outcomes. Without this binding the
+# worker uses its built-in interview and records nothing.
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "reachwright"
+# database_id = "REPLACE_WITH_SHARED_DATABASE_ID"
+
 # [env.dev]
 # name = "reachwright-qualify-dev"
 # Use a complete [env.dev.vars] table and separate dev namespaces/secrets.
