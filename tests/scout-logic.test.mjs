@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   normalizeDomain, normalizeName, normalizePhone, normalizeEmail,
-  normalizeHandle, identityKeys,
+  normalizeHandle, normalizeLocation, identityKeys,
 } from "../worker-api/src/lib/normalize.js";
 import { findDuplicate, mergedIdentityKeys } from "../worker-api/src/lib/dedupe.js";
 import {
@@ -14,13 +14,38 @@ import {
 } from "../worker-api/src/lib/suppression.js";
 import { assembleDraft, contentHash, INSUFFICIENT } from "../worker-api/src/lib/drafts.js";
 import { csvEscape, toCsv } from "../worker-api/src/lib/csv.js";
-import { validateBody } from "../worker-api/src/lib/validate.js";
+import { validObservedDate, validateBody } from "../worker-api/src/lib/validate.js";
+import { contactForChannel } from "../worker-api/src/lib/contact.js";
 
 // ---------------------------------------------------------------- normalize
 test("domain normalization strips protocol, www, paths, ports", () => {
   assert.equal(normalizeDomain("https://www.Harbor-Roofing.com/about?x=1"), "harbor-roofing.com");
   assert.equal(normalizeDomain("HARBOR-ROOFING.COM:443"), "harbor-roofing.com");
   assert.equal(normalizeDomain("not a domain"), "");
+});
+
+test("channel contacts are exact, syntactically usable, and never fall back across channels", () => {
+  const person = {
+    business_email: "Owner@Example.com",
+    email_status: "verified",
+    business_phone: "+1 (217) 555-0101",
+    public_profile_url: "https://www.linkedin.com/in/example-owner",
+    verification_state: "verified",
+  };
+  assert.equal(contactForChannel(person, "email"), "Owner@Example.com");
+  assert.equal(contactForChannel(person, "phone"), "+1 (217) 555-0101");
+  assert.equal(contactForChannel(person, "linkedin-manual"), person.public_profile_url);
+  assert.equal(contactForChannel(person, "dm"), person.public_profile_url);
+
+  assert.equal(contactForChannel({ ...person, business_email: "not-an-email" }, "email"), "");
+  assert.equal(contactForChannel({ ...person, email_status: "bounced" }, "email"), "");
+  assert.equal(contactForChannel({ ...person, business_phone: "call me" }, "phone"), "");
+  assert.equal(contactForChannel({ ...person, public_profile_url: "https://example.com/team/owner" }, "linkedin-manual"), "");
+  assert.equal(contactForChannel({ ...person, public_profile_url: "https://facebook.com/example-owner" }, "linkedin-manual"), "");
+  assert.equal(contactForChannel({ ...person, public_profile_url: "https://linkedin.com/company/example" }, "linkedin-manual"), "");
+  assert.equal(contactForChannel({ ...person, public_profile_url: "https://facebook.com/example-owner" }, "dm"),
+    "https://facebook.com/example-owner");
+  assert.equal(contactForChannel({ ...person, do_not_contact: 1 }, "email"), "");
 });
 
 test("name normalization removes legal suffixes and punctuation", () => {
@@ -44,6 +69,17 @@ test("email normalization handles plus tags and gmail dots", () => {
 test("handle normalization strips platform URLs", () => {
   assert.equal(normalizeHandle("https://facebook.com/HarborRoofing/"), "harborroofing");
   assert.equal(normalizeHandle("@harbor_roofing"), "harbor_roofing");
+});
+
+test("observation dates reject impossible and future calendar values", () => {
+  assert.equal(validObservedDate("2026-07-15"), true);
+  assert.equal(validObservedDate("2026-02-30"), false);
+  assert.equal(validObservedDate("2099-01-01"), false);
+});
+
+test("location normalization aligns common US state and country variants", () => {
+  assert.equal(normalizeLocation("Chicago, Illinois, United States"), "chicago il");
+  assert.equal(normalizeLocation("Chicago, IL"), "chicago il");
 });
 
 // ------------------------------------------------------------------- dedupe
@@ -70,6 +106,20 @@ test("duplicate detection: same domain+location merges; franchises with differen
   // Different location, no domain → no match (multi-branch stays separate until merged by phone/page id)
   const miss = findDuplicate({ name: "Harbor Roofing", location: "Peoria, Illinois" }, existing);
   assert.equal(miss.match, null);
+
+  // A corporate domain shared by multiple branches is not enough to merge
+  // two known, different locations.
+  const branchMiss = findDuplicate(
+    { domain: "harbor-roofing.com", name: "Harbor Roofing", location: "Peoria, Illinois" },
+    existing,
+  );
+  assert.equal(branchMiss.match, null);
+
+  const sharedPhoneBranch = findDuplicate(
+    { name: "Harbor Roofing", location: "Peoria, IL", phone: "+1 217 555 0101" },
+    existing,
+  );
+  assert.equal(sharedPhoneBranch.match, null, "a shared corporate phone cannot merge known different branches");
 });
 
 test("merged records are not merge targets; key union preserved", () => {
@@ -119,7 +169,12 @@ test("evidence inputs derive from stored items; stale evidence scores low", () =
     { strength: "first-party", observed_at: "2026-07-12", contradiction_state: "none", reviewer_state: "accepted" },
   ], { today, contactVerified: true });
   const freshScore = scoreEvidence(fresh);
-  assert.equal(freshScore.total, 100);
+  assert.equal(freshScore.total, 93, "a clean ledger without an explicit contradiction resolution gets partial credit");
+
+  const ignored = deriveEvidenceInputs([
+    { strength: "first-party", observed_at: "2026-07-12", contradiction_state: "none", reviewer_state: "unreviewed" },
+  ], { today, contactVerified: true });
+  assert.equal(scoreEvidence(ignored).total, 15, "unreviewed facts cannot inflate evidence confidence");
 
   const stale = deriveEvidenceInputs([
     { strength: "first-party", observed_at: "2026-01-01", contradiction_state: "none", reviewer_state: "accepted" },

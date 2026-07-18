@@ -10,7 +10,12 @@
 #   - `wrangler d1 create reachwright` → paste database_id below
 #   - `wrangler kv namespace create CACHE` → paste id below
 #   - Secrets: wrangler secret put OPERATOR_TOKEN (long random value)
-#              wrangler secret put APOLLO_API_KEY   (master key; people api_search requires it)
+#              wrangler secret put HUNTER_API_KEY   (free small-business + decision-maker data)
+#              wrangler secret put TAVILY_API_KEY   (free web-discovery key; no contact data)
+#              wrangler secret put APOLLO_API_KEY   (optional later; master key required for people search)
+#              wrangler secret put REEMERGENCE_DIAGNOSTIC_PAYMENT_LINK
+#              wrangler secret put REEMERGENCE_PROOF_SPRINT_PAYMENT_LINK
+#              wrangler secret put REEMERGENCE_RETAINER_PAYMENT_LINK
 #   - Optional hardening: put Cloudflare Access in front of the workers.dev route
 #   - EMAIL_GATE_PASSED stays "false" until the CAN-SPAM operational gate passes
 
@@ -20,16 +25,29 @@ compatibility_date = "2026-07-01"
 
 [vars]
 APP_ORIGIN = "http://localhost:8123"        # operator app origin; set to production app URL at deploy
+PROSPECT_PROVIDER = "hunter"                 # free-first company + owner/CEO discovery; set "apollo" only when funded
 DEV_FIXTURES = "false"                       # NEVER "true" in production
 EMAIL_GATE_PASSED = "false"                  # blocks email exports until CAN-SPAM gate passes
 PROVIDER_TIMEOUT_MS = "15000"
 PROVIDER_CREDIT_CEILING = "200"              # hard monthly estimate ceiling across all campaigns
 BODY_MAX_BYTES = "65536"
+WEBSITE_RESEARCH_TIMEOUT_MS = "12000"
+WEBSITE_RESEARCH_MAX_BYTES = "1000000"
+WEBSITE_RESEARCH_MAX_PAGES = "4"
+AUTO_DISCOVERY_ENABLED = "false"              # opt in only after production credit/cadence review
+AUTO_DISCOVERY_CAMPAIGN_ID = "rw-c-copywriting-feed"
+AUTO_DISCOVERY_TARGET = "5"
+AUTO_DISCOVERY_CANDIDATE_CAP = "40"
+AUTO_DISCOVERY_CREDIT_BUDGET = "10"
+AUTO_DISCOVERY_COOLDOWN_HOURS = "24"
+OPERATOR_FEED_HIDE_FIXTURES = "true"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "reachwright"
 database_id = "REPLACE_AT_DEPLOY"            # local mode ignores this
+migrations_dir = "../migrations"
+migrations_pattern = "../migrations/0*.sql"
 
 [[kv_namespaces]]
 binding = "CACHE"
@@ -39,15 +57,28 @@ id = "REPLACE_AT_DEPLOY"                     # local mode ignores this
 name = "reachwright-api-dev"
 [env.dev.vars]
 APP_ORIGIN = "http://localhost:8123"
+PROSPECT_PROVIDER = "auto"                   # use Tavily when its key exists; otherwise keep fenced fixtures for local testing
 DEV_FIXTURES = "true"                        # fixtures allowed in dev only
 EMAIL_GATE_PASSED = "false"
 PROVIDER_TIMEOUT_MS = "15000"
 PROVIDER_CREDIT_CEILING = "50"
 BODY_MAX_BYTES = "65536"
+WEBSITE_RESEARCH_TIMEOUT_MS = "12000"
+WEBSITE_RESEARCH_MAX_BYTES = "1000000"
+WEBSITE_RESEARCH_MAX_PAGES = "4"
+AUTO_DISCOVERY_ENABLED = "true"               # local operator opens Today and gets a replenished queue
+AUTO_DISCOVERY_CAMPAIGN_ID = "rw-c-copywriting-feed"
+AUTO_DISCOVERY_TARGET = "5"
+AUTO_DISCOVERY_CANDIDATE_CAP = "40"
+AUTO_DISCOVERY_CREDIT_BUDGET = "10"
+AUTO_DISCOVERY_COOLDOWN_HOURS = "24"
+OPERATOR_FEED_HIDE_FIXTURES = "true"
 [[env.dev.d1_databases]]
 binding = "DB"
 database_name = "reachwright"
 database_id = "REPLACE_AT_DEPLOY"
+migrations_dir = "../migrations"
+migrations_pattern = "../migrations/0*.sql"
 [[env.dev.kv_namespaces]]
 binding = "CACHE"
 id = "REPLACE_AT_DEPLOY"

@@ -17,7 +17,11 @@ import { researchRoutes } from "./routes/research.js";
 import { outreachRoutes } from "./routes/outreach.js";
 import { qualifyRoutes } from "./routes/qualify.js";
 import { reportRoutes } from "./routes/reports.js";
-import { providerStatus } from "./providers/registry.js";
+import { salesRoutes } from "./routes/sales.js";
+import { clientRoutes } from "./routes/clients.js";
+import { generationRoutes } from "./routes/generation.js";
+import { marketRoutes } from "./routes/market.js";
+import { providerStatus, generationSourcesStatus } from "./providers/registry.js";
 
 const encoder = new TextEncoder();
 
@@ -87,6 +91,10 @@ const routes = [
   ...outreachRoutes,
   ...qualifyRoutes,
   ...reportRoutes,
+  ...salesRoutes,
+  ...clientRoutes,
+  ...generationRoutes,
+  ...marketRoutes,
 ];
 
 function matchRoute(method, pathname) {
@@ -112,7 +120,7 @@ export async function handleRequest(request, env) {
     return new Response(null, {
       status: 204,
       headers: headers(env, {
-        "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
+        "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
         "access-control-allow-headers": "authorization, content-type",
         "access-control-max-age": "600",
       }),
@@ -127,6 +135,7 @@ export async function handleRequest(request, env) {
     return json(env, {
       ok: true,
       provider: providerStatus(env),
+      generation_sources: generationSourcesStatus(env),
       email_gate_passed: env.EMAIL_GATE_PASSED === "true",
     });
   }

@@ -24,9 +24,10 @@ _Verified against https://docs.apollo.io/ on **2026-07-15**. Re-verify before an
 
 ## Reachwright self-caps (below any plan limit)
 
-- `per_page ≤ 25`, `pages ≤ 4` per run, campaign `max_batch_size ≤ 100` enforced server-side.
-- Every call is metered into `provider_usage` with a **conservative** credit estimate before it happens; a monthly `PROVIDER_CREDIT_CEILING` blocks searches that would exceed it.
-- Credit estimates deliberately assume worst case (org search ≤1 credit per returned record per page). Reconcile against the Apollo dashboard and record actuals in `credits_reported`.
+- `per_page ≤ 25`, `pages ≤ 4` per run, campaign `max_batch_size ≤ 100`, and provider page numbers `1..500` are enforced server-side.
+- Continuation uses a token bound to the filter set, next page, and page size. A changed filter/token fails closed; a batch that cannot preserve stable page boundaries is rejected with safe examples instead of silently skipping records.
+- A **conservative** estimate is checked against the monthly `PROVIDER_CREDIT_CEILING` before a call. The success/failure route then records estimated usage in `provider_usage`; person-enrichment usage without a campaign still counts toward the global ceiling.
+- Credit estimates deliberately assume worst case (organization search ≤1 credit per returned record per page). The console does not currently write provider-reported actuals; reconcile estimates against Apollo's dashboard manually before changing the ceiling.
 
 ## Permitted use / storage posture
 

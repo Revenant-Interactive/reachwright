@@ -66,12 +66,32 @@ export function normalizeHandle(input) {
 /** Normalize a street-ish location string for identity keys. */
 export function normalizeLocation(input) {
   if (typeof input !== "string") return "";
-  return input.trim().toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  let value = input.trim().toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  value = value.replace(/\b(united states of america|united states|u s a|usa)\b/g, " ");
+  for (const [name, code] of US_STATE_CODES) {
+    value = value.replace(new RegExp(`\\b${name}\\b`, "g"), code);
+  }
+  return value.replace(/\s+/g, " ").trim();
 }
+
+const US_STATE_CODES = Object.entries({
+  alabama: "al", alaska: "ak", arizona: "az", arkansas: "ar", california: "ca",
+  colorado: "co", connecticut: "ct", delaware: "de", florida: "fl", georgia: "ga",
+  hawaii: "hi", idaho: "id", illinois: "il", indiana: "in", iowa: "ia", kansas: "ks",
+  kentucky: "ky", louisiana: "la", maine: "me", maryland: "md", massachusetts: "ma",
+  michigan: "mi", minnesota: "mn", mississippi: "ms", missouri: "mo", montana: "mt",
+  nebraska: "ne", nevada: "nv", "new hampshire": "nh", "new jersey": "nj",
+  "new mexico": "nm", "new york": "ny", "north carolina": "nc", "north dakota": "nd",
+  ohio: "oh", oklahoma: "ok", oregon: "or", pennsylvania: "pa", "rhode island": "ri",
+  "south carolina": "sc", "south dakota": "sd", tennessee: "tn", texas: "tx", utah: "ut",
+  vermont: "vt", virginia: "va", washington: "wa", "west virginia": "wv",
+  wisconsin: "wi", wyoming: "wy", "district of columbia": "dc",
+}).sort((a, b) => b[0].length - a[0].length);
 
 /**
  * Identity keys for an organization, strongest first.
- * Primary: domain+location. Fallbacks: name+location, phone, platform page id.
+ * Primary: domain+location. Fallbacks: name+location, locationless phone,
+ * platform page id.
  * Every key is prefixed with its type so keys never collide across types.
  */
 export function identityKeys(org) {
@@ -80,10 +100,15 @@ export function identityKeys(org) {
   const name = normalizeName(org.name || org.display_name || "");
   const location = normalizeLocation(org.location || "");
   const phone = normalizePhone(org.phone || "");
-  if (domain) keys.push(`domain:${domain}|loc:${location}`);
-  if (domain) keys.push(`domain:${domain}`);
+  // A shared corporate domain must not collapse separate branches into one
+  // prospect. When location is known, domain+location is the identity key;
+  // domain-only is reserved for records whose location is genuinely unknown.
+  if (domain && location) keys.push(`domain:${domain}|loc:${location}`);
+  else if (domain) keys.push(`domain:${domain}`);
   if (name && location) keys.push(`name:${name}|loc:${location}`);
-  if (phone) keys.push(`phone:${phone}`);
+  // Shared corporate phone numbers are common across branches. A phone is an
+  // auto-merge key only when location is unknown; known locations must agree.
+  if (phone && !location) keys.push(`phone:${phone}`);
   if (org.platform_page_id) keys.push(`page:${String(org.platform_page_id).toLowerCase()}`);
   return [...new Set(keys)];
 }

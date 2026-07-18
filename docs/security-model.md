@@ -14,8 +14,8 @@
 - **CSRF:** not applicable — no cookies; auth is a header only JS can attach.
 - **Input:** JSON-only, `BODY_MAX_BYTES` cap, closed schemas (unknown keys rejected, strings length-limited, enums exact, arrays bounded).
 - **Output:** `Cache-Control: no-store` + `nosniff` on every response; errors are short stable tokens, never stacks; the console renders all API data via `textContent` (no HTML injection from provider/model data).
-- **SSRF:** the API fetches exactly one fixed external host (`api.apollo.io`); no user-supplied URL is ever fetched. Evidence `source_url` is stored/displayed, never retrieved server-side.
-- **Batch/spend:** server-owned pagination caps (25/page, 4 pages), campaign batch caps, and a monthly provider credit ceiling checked before every search.
+- **SSRF:** provider adapters use fixed API hosts (`api.hunter.io`, `api.tavily.com`, and optional `api.apollo.io`). The generation engine may fetch a normalized company domain over HTTPS for official-site research, but rejects localhost, private/link-local/reserved IP literals and hostnames, non-HTTP(S) schemes, credentials, cross-site redirects, non-HTML content, oversized bodies, and redirect chains beyond the fixed limit. It fetches at most the configured number of same-site pages and stores observations/hashes, never raw HTML. Evidence, LinkedIn, and Stripe URLs are otherwise displayed or returned only.
+- **Batch/spend:** run target/candidate caps, provider-specific request caps, bounded keyword-query overfetching, per-run credit budgets, and a global monthly provider credit ceiling are checked before provider calls.
 - **Audit:** every mutation writes `audit_events` (redacted detail).
 
 ## Qualify worker controls (unchanged safety model, v0.2)
@@ -27,9 +27,14 @@ Exact-origin validation → one-time Turnstile at `POST /session` → random 48-
 | secret | store | notes |
 |---|---|---|
 | `OPERATOR_TOKEN` | worker-api secrets / `.dev.vars` locally | ≥16 chars enforced; rotate by `wrangler secret put` |
+| `HUNTER_API_KEY` | worker-api secrets / `.dev.vars` locally | free-first small-business and professional-contact discovery; never client-side, never logged |
+| `TAVILY_API_KEY` | worker-api secrets / `.dev.vars` locally | free-first web discovery; never client-side, never logged |
 | `APOLLO_API_KEY` | worker-api secrets | master key; never client-side, never logged |
 | `OPENROUTER_KEY` | qualify worker secrets | prepaid, auto top-up disabled |
 | `TURNSTILE_SECRET` | qualify worker secrets | widget locked to the site host |
+| `REEMERGENCE_DIAGNOSTIC_PAYMENT_LINK` | worker-api secret / `.dev.vars` locally | returned only to the authenticated operator after the signed-agreement gate |
+| `REEMERGENCE_PROOF_SPRINT_PAYMENT_LINK` | worker-api secret / `.dev.vars` locally | private qualified-only checkout; never public HTML or catalog output |
+| `REEMERGENCE_RETAINER_PAYMENT_LINK` | worker-api secret / `.dev.vars` locally | returned only to the authenticated operator after the signed-agreement gate |
 
 `.dev.vars`, `node_modules`, `.wrangler` are git-ignored. No secret value ever appears in logs, audit detail, or error responses.
 
@@ -37,4 +42,5 @@ Exact-origin validation → one-time Turnstile at `POST /session` → random 48-
 
 - KV rate counters are eventually consistent (Cloudflare-documented); the hard ceilings are provider-side prepaid limits and D1-recorded credit metering.
 - A single bearer token is the operator gate; compromise = console access until rotation. Mitigations: HTTPS-only, sessionStorage (not persistent), short token lifetime by rotation policy, optional Cloudflare Access.
+- Client separation is logical inside one authenticated operator workspace, not tenant isolation. Client offers, services, campaigns, runs, packets, attribution, and reports are scoped; canonical identities and suppression deliberately remain global safety controls.
 - GitHub Pages cannot set response headers; the public site's meta-CSP is defense-in-depth until the Cloudflare-proxied domain serves real headers.

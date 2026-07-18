@@ -255,11 +255,18 @@ body {
 
 /* ---------- offer ---------- */
 .offer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.4rem; margin-top: 2.5rem; }
+.offer-price { display: inline-flex; align-items: baseline; gap: 0.8rem; margin-top: 1.8rem;
+  padding: 0.8rem 1.1rem; border: 1px solid var(--copper); border-radius: 999px;
+  background: rgba(217, 142, 54, 0.08); }
+.offer-price strong { color: var(--copper-bright); font: 700 clamp(1.6rem, 4vw, 2.35rem) var(--serif); }
+.offer-price span { color: var(--muted); font-size: 0.86rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .offer-item { background: var(--bg-card); border: 1px solid var(--line); border-radius: 14px; padding: 1.5rem; }
 .offer-item h3 { font-size: 1.05rem; margin-bottom: 0.45rem; color: var(--copper-bright); }
 .offer-item p { color: var(--muted); font-size: 0.95rem; }
 .offer-item em { color: var(--text); }
 .offer-cta-line { margin: 2.2rem auto 1.4rem; text-align: center; color: var(--muted); max-width: 40rem; }
+.offer-cta-line strong { color: var(--text); }
+.offer-boundary { margin: 0 auto 1.5rem; text-align: center; color: var(--muted); max-width: 48rem; font-size: 0.9rem; }
 
 /* ---------- about / book ---------- */
 .about-body { margin-top: 1.4rem; font-size: 1.1rem; color: var(--muted); max-width: 46rem; }
@@ -270,6 +277,18 @@ body {
 .section-book .section-sub { margin-left: auto; margin-right: auto; }
 .book-slot { margin-top: 2.2rem; }
 .book-note { margin-top: 0.9rem; font-size: 0.85rem; color: var(--muted); }
+.email-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem 0.85rem;
+  margin: 1.1rem auto 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.email-options span { flex-basis: 100%; }
+.email-options a { color: var(--copper-bright); text-underline-offset: 0.18em; }
+.email-options a:hover { color: var(--text); }
 
 /* ---------- footer ---------- */
 .site-footer {
@@ -294,6 +313,7 @@ body {
 @media (max-width: 880px) {
   .hero { grid-template-columns: 1fr; padding-top: 2.5rem; }
   .steps, .stats, .offer-grid, .engine-grid { grid-template-columns: 1fr; }
+  .offer-price { align-items: center; }
   .site-nav a:not(.nav-cta) { display: none; }
 }
 

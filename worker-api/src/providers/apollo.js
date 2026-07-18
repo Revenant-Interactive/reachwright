@@ -17,7 +17,7 @@
 
 const BASE = "https://api.apollo.io/api/v1";
 const MAX_PER_PAGE = 25;   // server-owned batch cap, below Apollo's 100
-const MAX_PAGES = 4;
+const MAX_PAGE_NUMBER = 500;
 
 export function createApolloProvider(env) {
   const key = env.APOLLO_API_KEY;
@@ -91,10 +91,16 @@ export function createApolloProvider(env) {
 
   return {
     name: "apollo",
+    capabilities: {
+      organization_search: true,
+      people_search: true,
+      organization_enrichment: true,
+      person_enrichment: true,
+    },
 
     async searchOrganizations(filters = {}) {
       const perPage = Math.min(Number(filters.perPage) || MAX_PER_PAGE, MAX_PER_PAGE);
-      const page = Math.min(Math.max(1, Number(filters.page) || 1), MAX_PAGES);
+      const page = Math.min(Math.max(1, Number(filters.page) || 1), MAX_PAGE_NUMBER);
       const body = {
         page,
         per_page: perPage,
@@ -167,7 +173,7 @@ export function createApolloProvider(env) {
     estimateCredits(request) {
       switch (request?.operation) {
         case "searchOrganizations": {
-          const pages = Math.min(Math.max(1, Number(request.pages) || 1), MAX_PAGES);
+          const pages = Math.min(Math.max(1, Number(request.pages) || 1), 4);
           const perPage = Math.min(Number(request.perPage) || MAX_PER_PAGE, MAX_PER_PAGE);
           return { operation: request.operation, estimated: pages * perPage, basis: "≤1 credit per returned record per page (conservative)" };
         }

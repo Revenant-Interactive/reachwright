@@ -22,7 +22,8 @@ const FIXTURE_ORGS = [
 
 const FIXTURE_PEOPLE = [
   { id: "fxp-1", org: "fx-1", name: "[FIXTURE] Dana Example", title: "Owner", seniority: "owner",
-    email: "owner@fixture-harbor-roofing.example", email_status: "verified" },
+    email: "owner@fixture-harbor-roofing.example", email_status: "verified",
+    profile: "https://linkedin.com/in/fixture-dana-example" },
   { id: "fxp-2", org: "fx-2", name: "[FIXTURE] Riley Sample", title: "Director of Operations", seniority: "director",
     email: "", email_status: "unavailable" },
 ];
@@ -55,13 +56,20 @@ export function createFixtureProvider() {
     business_email: record.email,
     email_status: record.email_status,
     business_phone: "",
-    public_profile_url: "",
+    public_profile_url: record.profile || "",
     organization_provider_id: record.org,
     observed_at: observed,
   });
 
   return {
     name: "local-fixtures",
+    maxSearchBatch: 25,
+    capabilities: {
+      organization_search: true,
+      people_search: true,
+      organization_enrichment: true,
+      person_enrichment: true,
+    },
     async searchOrganizations(filters = {}) {
       const perPage = Math.min(Number(filters.perPage) || 25, 25);
       return {

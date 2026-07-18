@@ -70,13 +70,15 @@ export function scoreEvidence(inputs, disqualifiers = []) {
  * @param opts  {freshnessDays=60, today="YYYY-MM-DD", contactVerified=false}
  */
 export function deriveEvidenceInputs(items, opts = {}) {
-  const rows = Array.isArray(items) ? items.filter((i) => i && i.reviewer_state !== "rejected") : [];
+  // Unreviewed directory rows are candidates for investigation, not evidence
+  // that may raise a dossier's confidence score.
+  const rows = Array.isArray(items) ? items.filter((i) => i && i.reviewer_state === "accepted") : [];
   const freshnessDays = Number.isFinite(opts.freshnessDays) ? opts.freshnessDays : 60;
   const today = opts.today ? new Date(`${opts.today}T00:00:00Z`) : new Date();
 
   const firstParty = rows.filter((i) => i.strength === "first-party");
-  const accepted = rows.filter((i) => i.reviewer_state === "accepted");
   const contradicted = rows.filter((i) => i.contradiction_state === "contradicted");
+  const resolved = rows.filter((i) => i.contradiction_state === "resolved");
 
   const ageDays = (item) => {
     const observed = new Date(`${item.observed_at}T00:00:00Z`);
@@ -89,8 +91,11 @@ export function deriveEvidenceInputs(items, opts = {}) {
     identity_first_party: firstParty.length >= 2 ? 1 : firstParty.length === 1 ? 0.5 : 0,
     timing_current: timingCurrent ? 1 : 0,
     contact_verified: opts.contactVerified ? 1 : 0,
-    contradictions_handled: contradicted.length === 0 ? 1 : 0,
-    freshness_window: anyFresh && accepted.length > 0 ? 1 : anyFresh ? 0.5 : 0,
+    // "No contradiction recorded" is not the same as a documented check.
+    // Resolved contradictions earn full credit; an otherwise clean ledger
+    // earns partial credit; an unresolved contradiction earns none.
+    contradictions_handled: contradicted.length > 0 ? 0 : resolved.length > 0 ? 1 : rows.length > 0 ? 0.5 : 0,
+    freshness_window: anyFresh ? 1 : 0,
   };
 }
 
